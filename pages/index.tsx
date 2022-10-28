@@ -1,29 +1,21 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-
 import React, { useState, useCallback, useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
-import { json } from 'stream/consumers';
+// styling
 import { CssVarsProvider } from '@mui/joy/styles';
 import { Sheet, Box, Chip, ChipDelete, Alert, Typography, Divider } from '@mui/joy';
 import FormControl from '@mui/joy/FormControl';
 import { TextField, Button, Input, FormHelperText, FormLabel } from '@mui/joy';
 
-
 // TODO get from env
 const socketUrl = 'ws://localhost:8081/ws';
 
-function App() {
-  return
-}
 const Home = () => {
-  const defaultEmptyArrayOfStrings : string[] = [];
-  const [messageHistory, setMessageHistory] = useState<any | null>(defaultEmptyArrayOfStrings);
-  const [channel, setChannel] = useState('demo');
-  const [channelList, setChannelList] = useState<any | null>(defaultEmptyArrayOfStrings);
-  const [connected, setConnected] = useState(true);
+  const [messageHistory, setMessageHistory] = useState<string[]>([]);
+  const [channelInput, setChannelInput] = useState<string>('demo');
+  const [channelList, setChannelList] = useState<string[]>([]);
+  const [connected, setConnected] = useState<boolean>(true);
 
-  // create connection
+  // create WS connection
   const {
     sendMessage,
     lastMessage,
@@ -36,10 +28,7 @@ const Home = () => {
 
   // subscribe to the list of channels on page first load
   useEffect(() => {
-    console.log(channel);
-    const channels = channel.split(',')
-    setChannelList(channels);
-    sendMessage(JSON.stringify(channels))
+    doSubscribe()
   }, []);
 
   // update history on new message
@@ -49,32 +38,31 @@ const Home = () => {
       // primary | neutral | info | success | warning | danger
       // TODO unpack json message and check message type 
       // if not found default to neutral
-      // setMessageHistory((prev) => prev.concat(lastMessage));
-      // setMessageHistory((prev) => [...prev, lastMessage]);
-      const newHistory = [...messageHistory, lastMessage];
-      setMessageHistory(newHistory);
+      setMessageHistory(prev => [...messageHistory, String(lastMessage)]);
     }
   }, [lastMessage, setMessageHistory]);
 
   // form handlers
   const handleSubscribe = function () {
-    console.log(channel);
-    let channels = channel.split(',')
-    setChannelList(channels);
-    sendMessage(JSON.stringify(channels))
+    doSubscribe()
   }
 
   const handleConnect = function () {
     setConnected(prevValue => !prevValue);
   }
 
-  const handleChannelInput = function (e: { target: { name: any; value: any; type: any; checked: any; }; }) {
-    const { name, value, type, checked } = e.target
-    setChannel(value)
+  const handleChannelInput = function (e: { target: { value: string; }; }) {
+    setChannelInput(e.target.value)
   }
 
-  const handleChannelUnsubscribe = function() {
+  const handleChannelUnsubscribe = function () {
     alert('unsubscribed');
+  }
+
+  const doSubscribe = function () {
+    const channels = channelInput.split(',')
+    setChannelList(channels);
+    sendMessage(JSON.stringify(channels))
   }
 
   // connection status
@@ -86,14 +74,16 @@ const Home = () => {
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
   }[readyState];
 
+  const isConnected = readyState === ReadyState.OPEN;
+
   return (
     <CssVarsProvider>
       <Sheet sx={{
         maxWidth: 500,
         mx: 'auto',
-        my: 4, 
-        py: 3, 
-        px: 2, 
+        my: 4,
+        py: 3,
+        px: 2,
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
@@ -101,12 +91,13 @@ const Home = () => {
         backgroundColor: 'white'
       }}>
         <Divider component="div" role="presentation">
-          <Typography sx={{ p: 1 }}>Connection {connectionStatus} </Typography>
+          <Typography sx={{ p: 1 }}>Connection {connectionStatus}</Typography>
           <Button
             onClick={handleConnect}
-            variant="outlined" size="sm"
-            color={connected ? 'danger' : 'primary'}
-          >{connected ? 'Disconnect' : 'Connect'}</Button>
+            variant="outlined" 
+            size="sm"
+            color={isConnected ? 'danger' : 'primary'}
+          >{isConnected ? 'Disconnect' : 'Connect'}</Button>
         </Divider>
 
 
@@ -116,15 +107,17 @@ const Home = () => {
             placeholder="channel"
             name="channel"
             onChange={handleChannelInput}
-            value={channel}
+            value={channelInput}
             variant="soft"
-            size="lg" />
+            size="lg" 
+            disabled={!isConnected}
+            />
           <FormHelperText>One or more channels, Ex: demo, notify, global.</FormHelperText>
         </FormControl>
 
         <Button
           onClick={handleSubscribe}
-          disabled={readyState !== ReadyState.OPEN}
+          disabled={!isConnected}
           color="primary" variant="solid" size="lg"
         >Subscribe</Button>
         <Divider component="div" role="presentation">
