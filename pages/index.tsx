@@ -17,9 +17,10 @@ function App() {
   return
 }
 const Home = () => {
-  const [messageHistory, setMessageHistory] = useState([]);
+  const defaultEmptyArrayOfStrings : string[] = [];
+  const [messageHistory, setMessageHistory] = useState<any | null>(null);
   const [channel, setChannel] = useState('demo');
-  const [channelList, setChannelList] = useState([]);
+  const [channelList, setChannelList] = useState<any | null>(null);
   const [connected, setConnected] = useState(true);
 
   // create connection
@@ -48,7 +49,10 @@ const Home = () => {
       // primary | neutral | info | success | warning | danger
       // TODO unpack json message and check message type 
       // if not found default to neutral
-      setMessageHistory((prev) => prev.concat(lastMessage));
+      // setMessageHistory((prev) => prev.concat(lastMessage));
+      // setMessageHistory((prev) => [...prev, lastMessage]);
+      const newHistory = [...messageHistory, lastMessage];
+      setMessageHistory(newHistory);
     }
   }, [lastMessage, setMessageHistory]);
 
@@ -97,7 +101,7 @@ const Home = () => {
         backgroundColor: 'white'
       }}>
         <Divider component="div" role="presentation">
-          <Typography variant="h2" sx={{ p: 1 }}>Connection {connectionStatus} </Typography>
+          <Typography sx={{ p: 1 }}>Connection {connectionStatus} </Typography>
           <Button
             onClick={handleConnect}
             variant="outlined" size="sm"
@@ -124,10 +128,10 @@ const Home = () => {
           color="primary" variant="solid" size="lg"
         >Subscribe</Button>
         <Divider component="div" role="presentation">
-          <Typography variant="h2">Channels</Typography>
+          <Typography >Channels</Typography>
         </Divider>
         <Box sx={{ p: 1, m: 1 }}>
-          {channelList.map((channel, index) => (
+          {channelList.map((channel: string, index: number) => (
             <Chip
               key={index}
               size="md"
@@ -140,11 +144,11 @@ const Home = () => {
 
 
         <Divider component="div" role="presentation">
-          <Typography variant="h2">Messages</Typography>
+          <Typography >Messages</Typography>
         </Divider>
 
         <Box sx={{ display: 'flex', gap: 2, width: '100%', flexDirection: 'column' }}>
-          {messageHistory.map((message, idx) => (
+          {messageHistory.map((message: any, idx: number) => (
             <Alert key={idx} variant="soft" color={JSON.parse(message.data).type}>
               {message ? JSON.parse(message.data).text : null}
             </Alert>
