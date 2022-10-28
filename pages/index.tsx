@@ -18,9 +18,9 @@ function App() {
 }
 const Home = () => {
   const defaultEmptyArrayOfStrings : string[] = [];
-  const [messageHistory, setMessageHistory] = useState<any | null>(null);
+  const [messageHistory, setMessageHistory] = useState<any | null>(defaultEmptyArrayOfStrings);
   const [channel, setChannel] = useState('demo');
-  const [channelList, setChannelList] = useState<any | null>(null);
+  const [channelList, setChannelList] = useState<any | null>(defaultEmptyArrayOfStrings);
   const [connected, setConnected] = useState(true);
 
   // create connection
