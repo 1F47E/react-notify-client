@@ -12,7 +12,16 @@ const socketUrl = 'ws://localhost:8081/ws';
 const Home: NextPage = () => {
   const [messageHistory, setMessageHistory] = useState([]);
   const [channel, setChannel] = useState('demo');
-  const { sendMessage, lastMessage, readyState } = useWebSocket(socketUrl);
+  const {
+    sendMessage,
+    sendJsonMessage,
+    lastMessage,
+    readyState,
+    getWebSocket,
+  } = useWebSocket(socketUrl, {
+    onOpen: () => console.log('opened'),
+    shouldReconnect: (closeEvent) => true,
+  });
 
 
   // subscribe on load
@@ -55,7 +64,7 @@ const Home: NextPage = () => {
         subscribe
       </button>
       <h2>Connection: [{connectionStatus}]</h2>
-      {lastMessage ? <span>Last message: {lastMessage.data}</span> : null}
+      {lastMessage ? <div>Last message: {lastMessage.data}</div> : null}
       <div>
         {messageHistory.map((message, idx) => (
           <div key={idx}>{message ? message.data : null}</div>
