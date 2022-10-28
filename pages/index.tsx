@@ -1,51 +1,79 @@
 import type { NextPage } from 'next'
 import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
 
 import React, { useState, useCallback, useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
+import { json } from 'stream/consumers';
+import { CssVarsProvider } from '@mui/joy/styles';
+import { Sheet, Box, Chip, ChipDelete, Alert, Typography, Divider } from '@mui/joy';
+import FormControl from '@mui/joy/FormControl';
+import { TextField, Button, Input, FormHelperText, FormLabel } from '@mui/joy';
 
-// get from env
+
+// TODO get from env
 const socketUrl = 'ws://localhost:8081/ws';
 
-const Home: NextPage = () => {
+function App() {
+  return
+}
+const Home = () => {
   const [messageHistory, setMessageHistory] = useState([]);
   const [channel, setChannel] = useState('demo');
+  const [channelList, setChannelList] = useState([]);
+  const [connected, setConnected] = useState(true);
+
+  // create connection
   const {
     sendMessage,
-    sendJsonMessage,
     lastMessage,
     readyState,
     getWebSocket,
   } = useWebSocket(socketUrl, {
     onOpen: () => console.log('opened'),
     shouldReconnect: (closeEvent) => true,
-  });
+  }, connected);
 
-
-  // subscribe on load
+  // subscribe to the list of channels on page first load
   useEffect(() => {
-    sendMessage('["' + channel + '"]')
+    console.log(channel);
+    const channels = channel.split(',')
+    setChannelList(channels);
+    sendMessage(JSON.stringify(channels))
   }, []);
 
-  // update history
+  // update history on new message
   useEffect(() => {
     if (lastMessage !== null) {
+      // message types
+      // primary | neutral | info | success | warning | danger
+      // TODO unpack json message and check message type 
+      // if not found default to neutral
       setMessageHistory((prev) => prev.concat(lastMessage));
     }
   }, [lastMessage, setMessageHistory]);
 
-  // handlers
-  const handleClickSendMessage = useCallback(() => sendMessage('["' + channel + '"]'), []);
+  // form handlers
+  const handleSubscribe = function () {
+    console.log(channel);
+    let channels = channel.split(',')
+    setChannelList(channels);
+    sendMessage(JSON.stringify(channels))
+  }
 
-  const handleChannelChange = function(e: { target: { name: any; value: any; type: any; checked: any; }; }) {
+  const handleConnect = function () {
+    setConnected(prevValue => !prevValue);
+  }
+
+  const handleChannelInput = function (e: { target: { name: any; value: any; type: any; checked: any; }; }) {
     const { name, value, type, checked } = e.target
-    console.log(value)
     setChannel(value)
   }
 
+  const handleChannelUnsubscribe = function() {
+    alert('unsubscribed');
+  }
 
+  // connection status
   const connectionStatus = {
     [ReadyState.CONNECTING]: 'Connecting',
     [ReadyState.OPEN]: 'Open',
@@ -53,24 +81,77 @@ const Home: NextPage = () => {
     [ReadyState.CLOSED]: 'Closed',
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
   }[readyState];
-  return (
-    <div>
 
-      <input type="text" placeholder='channel name' value={channel} onChange={handleChannelChange} />
-      <button
-        onClick={handleClickSendMessage}
-        disabled={readyState !== ReadyState.OPEN}
-      >
-        subscribe
-      </button>
-      <h2>Connection: [{connectionStatus}]</h2>
-      {lastMessage ? <div>Last message: {lastMessage.data}</div> : null}
-      <div>
-        {messageHistory.map((message, idx) => (
-          <div key={idx}>{message ? message.data : null}</div>
-        ))}
-      </div>
-    </div>
+  return (
+    <CssVarsProvider>
+      <Sheet sx={{
+        maxWidth: 500,
+        mx: 'auto',
+        my: 4, 
+        py: 3, 
+        px: 2, 
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        borderRadius: 'sm',
+        backgroundColor: 'white'
+      }}>
+        <Divider component="div" role="presentation">
+          <Typography variant="h2" sx={{ p: 1 }}>Connection {connectionStatus} </Typography>
+          <Button
+            onClick={handleConnect}
+            variant="outlined" size="sm"
+            color={connected ? 'danger' : 'primary'}
+          >{connected ? 'Disconnect' : 'Connect'}</Button>
+        </Divider>
+
+
+
+        <FormControl>
+          <Input type="text"
+            placeholder="channel"
+            name="channel"
+            onChange={handleChannelInput}
+            value={channel}
+            variant="soft"
+            size="lg" />
+          <FormHelperText>One or more channels, Ex: demo, notify, global.</FormHelperText>
+        </FormControl>
+
+        <Button
+          onClick={handleSubscribe}
+          disabled={readyState !== ReadyState.OPEN}
+          color="primary" variant="solid" size="lg"
+        >Subscribe</Button>
+        <Divider component="div" role="presentation">
+          <Typography variant="h2">Channels</Typography>
+        </Divider>
+        <Box sx={{ p: 1, m: 1 }}>
+          {channelList.map((channel, index) => (
+            <Chip
+              key={index}
+              size="md"
+              variant="outlined"
+              color="primary"
+              endDecorator={<ChipDelete onClick={handleChannelUnsubscribe} />}
+            >{channel}</Chip>
+          ))}
+        </Box>
+
+
+        <Divider component="div" role="presentation">
+          <Typography variant="h2">Messages</Typography>
+        </Divider>
+
+        <Box sx={{ display: 'flex', gap: 2, width: '100%', flexDirection: 'column' }}>
+          {messageHistory.map((message, idx) => (
+            <Alert key={idx} variant="soft" color={JSON.parse(message.data).type}>
+              {message ? JSON.parse(message.data).text : null}
+            </Alert>
+          ))}
+        </Box>
+      </Sheet>
+    </CssVarsProvider>
   )
 }
 
