@@ -37,10 +37,8 @@ const Home = () => {
     if (lastMessage !== null) {
       // message types
       // primary | neutral | info | success | warning | danger
-      // TODO unpack json message and check message type 
-      // if not found default to neutral
-      const newhistory = [...messageHistory, lastMessage]
-      setMessageHistory(newhistory);
+      // TODO: unpack json message and check message type 
+      setMessageHistory((prev) => [...prev, lastMessage.data]);
     }
   }, [lastMessage, setMessageHistory]);
 
