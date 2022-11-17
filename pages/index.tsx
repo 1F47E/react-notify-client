@@ -6,8 +6,9 @@ import { Sheet, Box, Chip, ChipDelete, Alert, Typography, Divider } from '@mui/j
 import FormControl from '@mui/joy/FormControl';
 import { TextField, Button, Input, FormHelperText, FormLabel } from '@mui/joy';
 
-// TODO get from env
-const socketUrl = 'ws://localhost:8081/ws';
+// get the url of the websocket server from vercel envs
+// NEXT_PUPLIC prefix is required for vercel to expose the env
+const socketUrl = process.env.NEXT_PUBLIC_WS_SERVER_URL as string;
 
 const Home = () => {
   const [messageHistory, setMessageHistory] = useState<string[]>([]);
@@ -38,7 +39,8 @@ const Home = () => {
       // primary | neutral | info | success | warning | danger
       // TODO unpack json message and check message type 
       // if not found default to neutral
-      setMessageHistory(prev => [...messageHistory, String(lastMessage)]);
+      const newhistory = [...messageHistory, lastMessage]
+      setMessageHistory(newhistory);
     }
   }, [lastMessage, setMessageHistory]);
 
@@ -55,12 +57,18 @@ const Home = () => {
     setChannelInput(e.target.value)
   }
 
-  const handleChannelUnsubscribe = function () {
-    alert('unsubscribed');
+  const handleChannelUnsubscribe = function (index: number) {
+    console.log('unsubscribe', index)
+    const newChannelList = channelList.filter(chan => chan !== channelList[index])
+    setChannelList(newChannelList)
+    setChannelInput(newChannelList.join(', '))
+    doSubscribe(newChannelList)
   }
 
-  const doSubscribe = function () {
-    const channels = channelInput.split(',')
+  const doSubscribe = function (channels?: string[]) {
+    if (!channels) {
+      channels = channelInput.split(',')
+    }
     setChannelList(channels);
     sendMessage(JSON.stringify(channels))
   }
@@ -94,12 +102,11 @@ const Home = () => {
           <Typography sx={{ p: 1 }}>Connection {connectionStatus}</Typography>
           <Button
             onClick={handleConnect}
-            variant="outlined" 
+            variant="outlined"
             size="sm"
             color={isConnected ? 'danger' : 'primary'}
           >{isConnected ? 'Disconnect' : 'Connect'}</Button>
         </Divider>
-
 
 
         <FormControl>
@@ -109,9 +116,9 @@ const Home = () => {
             onChange={handleChannelInput}
             value={channelInput}
             variant="soft"
-            size="lg" 
+            size="lg"
             disabled={!isConnected}
-            />
+          />
           <FormHelperText>One or more channels, Ex: demo, notify, global.</FormHelperText>
         </FormControl>
 
@@ -130,7 +137,7 @@ const Home = () => {
               size="md"
               variant="outlined"
               color="primary"
-              endDecorator={<ChipDelete onClick={handleChannelUnsubscribe} />}
+              endDecorator={<ChipDelete onClick={() => handleChannelUnsubscribe(index)} />}
             >{channel}</Chip>
           ))}
         </Box>
