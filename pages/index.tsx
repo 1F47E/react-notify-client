@@ -48,8 +48,10 @@ const Home = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [messageHistory, setMessageHistory] = useState<string[]>([]);
   // const [channelInput, setChannelInput] = useState<string>('demo');
-  const [channelList, setChannelList] = useState<string[]>(defaultChannels);
-  const [connected, setConnected] = useState<boolean>(true);
+  const [channels, setChannels] = useState<string[]>(defaultChannels);
+  // const [connected, setConnected] = useState<boolean>(true);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [doConnect, setDoConnect] = useState<boolean>(true);
 
   // create WS connection
   // const {
@@ -64,7 +66,10 @@ const Home = () => {
   //   shouldReconnect: (closeEvent) => true,
   // }, connected);
 
-  const { sendMessage, lastMessage, readyState } = useWebSocket(socketUrl);
+  const { sendMessage, lastMessage, readyState } = useWebSocket(
+    socketUrl, {
+    shouldReconnect: (closeEvent) => true,
+  }, doConnect);
 
   const connectionStatus = {
     [ReadyState.CONNECTING]: 'Connecting',
@@ -74,45 +79,94 @@ const Home = () => {
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
   }[readyState];
 
-  // use effect on readyState change to monitor connection status
-  // useEffect(() => {
-  //   if (readyState === ReadyState.OPEN) {
-  //     console.log('useWebSocket connected (useEffect)')
-  //     // updateChannels(null)
-  //     setIsConnected(true)
-  //     // setConnected(true)
-  //     logEvent("readyState: connected");
-  //     showNotification({
-  //       message: 'Connected',
-  //       color: 'green',
-  //       radius: 'lg'
-  //     })
-  //   } else if (readyState === ReadyState.CLOSED) {
-  //     logEvent("readyState: closed");
-  //     setIsConnected(false)
-  //     showNotification({
-  //       message: 'Disconnected',
-  //       color: 'red',
-  //       radius: 'lg'
-  //     })
+  // function to convert readyState to string status
+  const stateToString = (state: number) => {
+    switch (state) {
+      case ReadyState.UNINSTANTIATED:
+        return 'UNINSTANTIATED';
+      case ReadyState.CONNECTING:
+        return 'CONNECTING';
+      case ReadyState.OPEN:
+        return 'OPEN';
+      case ReadyState.CLOSING:
+        return 'CLOSING';
+      case ReadyState.CLOSED:
+        return 'CLOSED';
+      default:
+        return 'UNKNOWN';
+    }
+  }
 
-  //   } else {
-  //     setIsConnected(false)
-  //     console.log('useWebSocket disconnected (useEffect')
-  //   }
-  // }, [readyState])
+  const messageTypeToColor = function (type: string): string {
+    switch (type) {
+      case 'info':
+        return 'blue';
+      case 'error':
+        return 'red';
+      case 'success':
+        return 'green';
+      case 'warning':
+        return 'yellow';
+      default:
+        return 'gray';
+    }
+  }
 
-  // connection status enum to string
-  // const connectionStatus = {
-  //   [ReadyState.CONNECTING]: 'Connecting',
-  //   [ReadyState.OPEN]: 'Open',
-  //   [ReadyState.CLOSING]: 'Closing',
-  //   [ReadyState.CLOSED]: 'Closed',
-  //   [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
-  // }[readyState];
+  const notify = function (message: string, color: string) {
+    showNotification({
+      message: message,
+      color: color,
+      radius: 'lg'
+    })
+  }
 
-  // let isConnected = readyState === ReadyState.OPEN;
+  // handle readyState changes
+  useEffect(() => {
+    if (readyState === ReadyState.OPEN) {
+      setIsConnected(true);
+      console.log('useWebSocket connected (useEffect)')
+      logEvent("Connected");
+      notify("Connected", "green")
 
+    } else if (readyState === ReadyState.CLOSED) {
+      setIsConnected(false);
+      logEvent("Disconnected");
+      notify("Disconnected", "red")
+
+    } else {
+      setIsConnected(false);
+      const statusStr = stateToString(readyState)
+      console.log(`useWebSocket state: ${statusStr} (useEffect)`)
+      logEvent('connection: ' + statusStr);
+    }
+  }, [readyState]);
+
+
+  // update on new incoming ws message
+  // TODO: make message an object with text and type
+  useEffect(() => {
+    console.log('useEffect on lastMessage')
+    console.log({ lastMessage });
+    if (lastMessage !== null) {
+      setMessageHistory((prev) => [lastMessage.data, ...prev]);
+
+      const message = JSON.parse(lastMessage.data);
+      const color = messageTypeToColor(message.type);
+
+      // show nitification on new message
+      notify(message.text, color);
+    }
+  }, [lastMessage]);
+
+  // handle channels change
+  useEffect(() => {
+    if (channels.length == 0) {
+      logEvent('Unsubscribed from all channels');
+    } else {
+      logEvent(`Subscribed to: ${channels}`);
+    }
+    sendMessage(JSON.stringify(channels))
+  }, [channels, sendMessage]);
 
   // update logs array with datetime + event
   const logEvent = function (val: string) {
@@ -124,72 +178,15 @@ const Home = () => {
   }
 
   // handle multiselect on change
-  const handleChannelsInput = function (channels: string[]) {
-    console.log({ channels })
-    updateChannels(channels)
+  const handleChannelsInput = function (vars: string[]) {
+    setChannels(vars);
   }
 
-  // handle connect-disconnect button
   const handleConnectButton = function () {
-    logEvent(connected ? 'disconnecting...' : 'trying to connect...')
-    setConnected(prevValue => !prevValue);
+    logEvent(isConnected ? 'disconnecting...' : 'connecting...')
+    setDoConnect(prevValue => !prevValue);
   }
 
-  const updateChannels = function (channels: string[] | null) {
-    if (!connected) {
-      console.log("cant subscribe, not connected")
-      return
-    }
-    if (channels === null) {
-      channels = defaultChannels
-    }
-    if (channels.length === 0) {
-      logEvent('Unsubscribing from all channels');
-    } else {
-      logEvent(`Subscribing to ${channels.join(', ')}`);
-    }
-    setChannelList(channels);
-    sendMessage(JSON.stringify(channels))
-  }
-
-  // update history on new message
-  // TODO: make message an object with text and type
-  useEffect(() => {
-    console.log('useEffect on lastMessage')
-    console.log({ lastMessage });
-    if (lastMessage !== null) {
-      setMessageHistory((prev) => [lastMessage.data, ...prev]);
-
-      // show nitification on new message
-      const message = JSON.parse(lastMessage.data);
-      showNotification({
-        message: message.text,
-        color: message.type,
-        radius: 'lg'
-      })
-    }
-  }, [lastMessage]);
-
-  // handle connected event
-  // useEffect(() => {
-  //   // log the event
-  //   console.log('useEffect on connectionStatus')
-  //   logEvent(connectionStatus);
-  //   showNotification({
-  //     message: 'connectionStatus:'+connectionStatus,
-  //     color: 'green',
-  //     radius: 'lg'
-  //   })
-  // }, [connectionStatus]);
-
-
-  const theme = useMantineTheme()
-
-  // multiselect
-  // const [data, setData] = useState([
-  //   { value: 'demo', label: 'demo' },
-  //   { value: 'global', label: 'global' },
-  // ]);
 
   return (
     <Container
@@ -203,13 +200,10 @@ const Home = () => {
         {/* ========== LEFT COL ========== */}
         <Grid.Col md={6} lg={3}>
 
-          <Title>Connection. readyState: {readyState}, connectionStatus: {connectionStatus}</Title>
-          <Space h="xl" />
-
           <Paper radius="lg" p="lg" withBorder={true}>
             <Group>
 
-              <Text color={connected ? 'green' : 'red'}>{connectionStatus}</Text>
+              <Text color={isConnected ? 'green' : 'red'}>{connectionStatus}</Text>
 
               <Button
                 color="indigo"
@@ -218,7 +212,7 @@ const Home = () => {
                 // compact
                 onClick={handleConnectButton}
               >
-                {connected ? 'Disconnect' : 'Connect'}
+                {isConnected ? 'Disconnect' : 'Connect'}
               </Button>
             </Group>
           </Paper>
@@ -229,12 +223,12 @@ const Home = () => {
             <Text>Channels</Text>
             <Space h="sm" />
             <MultiSelect
-              data={channelList}
+              data={channels}
               defaultValue={defaultChannels}
               placeholder="Subscribe to some channels here"
               size="sm"
               radius="lg"
-              disabled={!connected}
+              disabled={!isConnected}
               searchable
               creatable
               icon={<IconStack2 />}
@@ -246,7 +240,6 @@ const Home = () => {
           <Space h="xl" />
 
           <Paper radius="lg" p="lg" withBorder={true}>
-            <Text>Logs</Text>
             <Space h="sm" />
             <ScrollArea style={{ height: 250 }} type="auto" offsetScrollbars>
               {logs.map((log, index) => (
@@ -257,18 +250,13 @@ const Home = () => {
         </Grid.Col>
 
         <Grid.Col md={6} lg={3}>
-          <Title >Message history</Title>
-          <Space h="xl" />
           <Paper radius="lg" p="lg" withBorder={true}>
             {messageHistory.length == 0 && <Text>No messages</Text>}
 
             {messageHistory.map((message: any, idx: number) => (
               <Container key={idx}>
-
                 <Alert
-                  // icon={<IconAlertCircle size={16} />}
-                  // title="Bummer!"
-                  color={JSON.parse(message).type}
+                  color={messageTypeToColor(JSON.parse(message).type)}
                   radius="lg"
                 >
                   {message ? JSON.parse(message).text : null}
@@ -279,6 +267,7 @@ const Home = () => {
           </Paper>
         </Grid.Col>
       </Grid>
+
     </Container>
   )
 }
