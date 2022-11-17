@@ -1,17 +1,14 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
+import { showNotification } from '@mantine/notifications';
 
 // styling
 
 import {
-  createStyles,
-  Image,
-  Card,
   Grid,
   Text,
   Group,
   Button,
-  Badge,
   Container,
   Space,
   Title,
@@ -31,6 +28,7 @@ import {
   Paper,
   Chip,
   MultiSelect,
+  ScrollArea,
   useMantineTheme
 } from "@mantine/core";
 
@@ -40,20 +38,17 @@ import {
   IconStack2
 } from "@tabler/icons"
 
-
-// import { CssVarsProvider } from '@mui/joy/styles';
-// import { Sheet, Box, Chip, ChipDelete, Alert, Typography, Divider } from '@mui/joy';
-// import FormControl from '@mui/joy/FormControl';
-// import { TextField, Button, Input, FormHelperText, FormLabel } from '@mui/joy';
-
 // get the url of the websocket server from vercel envs
 // NEXT_PUPLIC prefix is required for vercel to expose the env
 const socketUrl = process.env.NEXT_PUBLIC_WS_SERVER_URL as string;
 
+const defaultChannels = ['general', 'random', 'test'];
+
 const Home = () => {
+  const [logs, setLogs] = useState<string[]>([]);
   const [messageHistory, setMessageHistory] = useState<string[]>([]);
-  const [channelInput, setChannelInput] = useState<string>('demo');
-  const [channelList, setChannelList] = useState<string[]>([]);
+  // const [channelInput, setChannelInput] = useState<string>('demo');
+  const [channelList, setChannelList] = useState<string[]>(defaultChannels);
   const [connected, setConnected] = useState<boolean>(true);
 
   // create WS connection
@@ -63,57 +58,39 @@ const Home = () => {
     readyState,
     getWebSocket,
   } = useWebSocket(socketUrl, {
-    onOpen: () => console.log('opened'),
+    onOpen: () => {
+      console.log('useWebSocket connected (onOpen)')
+    },
     shouldReconnect: (closeEvent) => true,
   }, connected);
 
-  // subscribe to the list of channels on page first load
+
+  // use effect on readyState change to monitor connection status
   useEffect(() => {
-    doSubscribe()
-  }, []);
+    if (readyState === ReadyState.OPEN) {
+      console.log('useWebSocket connected (useEffect)')
+      updateChannels(null)
+      // setConnected(true)
+      logEvent("readyState: connected");
+      showNotification({
+        message: 'Connected',
+        color: 'green',
+        radius: 'lg'
+      })
+    } else if (readyState === ReadyState.CLOSED) {
+      logEvent("readyState: closed");
+      showNotification({
+        message: 'Disconnected',
+        color: 'red',
+        radius: 'lg'
+      })
 
-  // update history on new message
-  // TODO: make message an object with text and type
-  useEffect(() => {
-    console.log('useEffect on lastMessage')
-    console.log({ lastMessage });
-    if (lastMessage !== null) {
-      setMessageHistory((prev) => [...prev, lastMessage.data]);
+    } else {
+      console.log('useWebSocket disconnected (useEffect')
     }
-  }, [lastMessage]);
+  }, [readyState])
 
-
-
-  // form handlers
-  const handleSubscribe = function () {
-    doSubscribe()
-  }
-
-  const handleConnect = function () {
-    setConnected(prevValue => !prevValue);
-  }
-
-  const handleChannelInput = function (e: { target: { value: string; }; }) {
-    setChannelInput(e.target.value)
-  }
-
-  const handleChannelUnsubscribe = function (index: number) {
-    console.log('unsubscribe', index)
-    const newChannelList = channelList.filter(chan => chan !== channelList[index])
-    setChannelList(newChannelList)
-    setChannelInput(newChannelList.join(', '))
-    doSubscribe(newChannelList)
-  }
-
-  const doSubscribe = function (channels?: string[]) {
-    if (!channels) {
-      channels = channelInput.split(',')
-    }
-    setChannelList(channels);
-    sendMessage(JSON.stringify(channels))
-  }
-
-  // connection status
+  // connection status enum to string
   const connectionStatus = {
     [ReadyState.CONNECTING]: 'Connecting',
     [ReadyState.OPEN]: 'Open',
@@ -122,28 +99,94 @@ const Home = () => {
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
   }[readyState];
 
-  const isConnected = readyState === ReadyState.OPEN;
+  // let isConnected = readyState === ReadyState.OPEN;
+
+
+  // update logs array with datetime + event
+  const logEvent = function (val: string) {
+    console.log('logging: ' + val)
+    setLogs((prev) => [
+      `${new Date().toLocaleTimeString()}: ${val} `,
+      ...prev,
+    ]);
+  }
+
+  // handle multiselect on change
+  const handleChannelsInput = function (channels: string[]) {
+    console.log({ channels })
+    updateChannels(channels)
+  }
+
+  // handle connect-disconnect button
+  const handleConnectButton = function () {
+    logEvent(connected ? 'disconnecting...' : 'trying to connect...')
+    setConnected(prevValue => !prevValue);
+  }
+
+  const updateChannels = function (channels: string[] | null) {
+    if (!connected) {
+      console.log("cant subscribe, not connected")
+      return
+    }
+    if (channels === null) {
+      channels = defaultChannels
+    }
+    if (channels.length === 0) {
+      logEvent('Unsubscribing from all channels');
+    } else {
+      logEvent(`Subscribing to ${channels.join(', ')}`);
+    }
+    setChannelList(channels);
+    sendMessage(JSON.stringify(channels))
+  }
+
+  // update history on new message
+  // TODO: make message an object with text and type
+  useEffect(() => {
+    console.log('useEffect on lastMessage')
+    console.log({ lastMessage });
+    if (lastMessage !== null) {
+      setMessageHistory((prev) => [lastMessage.data, ...prev]);
+
+      // show nitification on new message
+      const message = JSON.parse(lastMessage.data);
+      showNotification({
+        message: message.text,
+        color: message.type,
+        radius: 'lg'
+      })
+    }
+  }, [lastMessage]);
+
+  // handle connected event
+  // useEffect(() => {
+  //   // log the event
+  //   console.log('useEffect on connectionStatus')
+  //   logEvent(connectionStatus);
+  //   showNotification({
+  //     message: 'connectionStatus:'+connectionStatus,
+  //     color: 'green',
+  //     radius: 'lg'
+  //   })
+  // }, [connectionStatus]);
+
 
   const theme = useMantineTheme()
 
   // multiselect
-  const [data, setData] = useState([
-    { value: 'demo', label: 'Demo' },
-    { value: 'global', label: 'Global' },
-  ]);
+  // const [data, setData] = useState([
+  //   { value: 'demo', label: 'demo' },
+  //   { value: 'global', label: 'global' },
+  // ]);
 
   return (
     <Container
       sx={{
-        // width: "100%",
-        // maxWidth: '600px',
-        // border: '1px solid',
-        // borderColor: theme.colors.gray[4],
-        // borderRadius: 20,
         padding: 20,
         marginTop: 20
       }}
     >
+
       <Grid grow gutter="xl">
         {/* ========== LEFT COL ========== */}
         <Grid.Col md={6} lg={3}>
@@ -154,80 +197,55 @@ const Home = () => {
           <Paper radius="lg" p="lg" withBorder={true}>
             <Group>
 
-              <Text color={isConnected ? 'green' : 'red'}>{connectionStatus}</Text>
-              {/* <Button
-              onClick={handleConnect}
-              size="sm"
-              color={isConnected ? 'danger' : 'primary'}
-            >{isConnected ? 'Disconnect' : 'Connect'}</Button> */}
+              <Text color={connected ? 'green' : 'red'}>{connectionStatus}</Text>
+
               <Button
                 color="indigo"
                 radius="lg"
                 size="xs"
                 // compact
-                onClick={handleConnect}
+                onClick={handleConnectButton}
               >
-                {isConnected ? 'Disconnect' : 'Connect'}
+                {connected ? 'Disconnect' : 'Connect'}
               </Button>
             </Group>
           </Paper>
 
-
           <Space h="xl" />
 
           <Paper radius="lg" p="lg" withBorder={true}>
-
-<Text>Channels</Text>
-<Space h="sm" />
+            <Text>Channels</Text>
+            <Space h="sm" />
             <MultiSelect
-              // label="Channels"
-              data={data}
-              defaultValue={['demo', 'global']}
+              data={channelList}
+              defaultValue={defaultChannels}
               placeholder="Subscribe to some channels here"
               size="sm"
               radius="lg"
-              disabled={!isConnected}
+              disabled={!connected}
               searchable
               creatable
               icon={<IconStack2 />}
               getCreateLabel={(query) => `Subscribe to [${query}]`}
-              onCreate={(query) => {
-                const item = { value: query, label: query };
-                setData((current) => [...current, item]);
-                return item;
-              }}
+              onChange={handleChannelsInput}
             />
-
-            {/* <Space h="xl" /> */}
-            {/* <Paper radius="lg" p="lg" withBorder={true}> */}
-            {/* {channelList.map((channel: string, index: number) => (
-              <Button
-                key={index}
-                color="green"
-                variant='outline'
-                radius="lg"
-                size="xs"
-                rightIcon={<IconX size={12} color="white" />}
-                >channel</Button>
-            ))} */}
-            {/* </Paper> */}
           </Paper>
-          {/* <Group sx={{ p: 1, m: 1 }}>
-            {channelList.map((channel: string, index: number) => (
-              <Button
-                key={index}
-                size="md"
-                // variant="outlined"
-                color="primary"
-              // endDecorator={<ChipDelete onClick={() => handleChannelUnsubscribe(index)} />}
-              >{channel}</Button>
-            ))}
-          </Group> */}
 
+          <Space h="xl" />
+
+          <Paper radius="lg" p="lg" withBorder={true}>
+            <Text>Logs</Text>
+            <Space h="sm" />
+            <ScrollArea style={{ height: 250 }} type="auto" offsetScrollbars>
+              {logs.map((log, index) => (
+                <Text key={index} size="xs">{log}</Text>
+              ))}
+            </ScrollArea>
+          </Paper>
         </Grid.Col>
-        <Grid.Col md={6} lg={3}>
 
-          <Title >Messages</Title>
+        <Grid.Col md={6} lg={3}>
+          <Title >Message history</Title>
           <Space h="xl" />
           <Paper radius="lg" p="lg" withBorder={true}>
             {messageHistory.length == 0 && <Text>No messages</Text>}
@@ -236,8 +254,8 @@ const Home = () => {
               <Container key={idx}>
 
                 <Alert
-                  icon={<IconAlertCircle size={16} />}
-                  title="Bummer!"
+                  // icon={<IconAlertCircle size={16} />}
+                  // title="Bummer!"
                   color={JSON.parse(message).type}
                   radius="lg"
                 >
