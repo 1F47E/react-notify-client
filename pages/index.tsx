@@ -1,10 +1,50 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
+
 // styling
-import { CssVarsProvider } from '@mui/joy/styles';
-import { Sheet, Box, Chip, ChipDelete, Alert, Typography, Divider } from '@mui/joy';
-import FormControl from '@mui/joy/FormControl';
-import { TextField, Button, Input, FormHelperText, FormLabel } from '@mui/joy';
+
+import {
+  createStyles,
+  Image,
+  Card,
+  Grid,
+  Text,
+  Group,
+  Button,
+  Badge,
+  Container,
+  Space,
+  Title,
+  Center,
+  Divider,
+  Input,
+  Radio,
+  Popover,
+  Tooltip,
+  TextInput,
+  Indicator,
+  Select,
+  CloseButton,
+  Modal,
+  Transition,
+  Alert,
+  Paper,
+  Chip,
+  MultiSelect,
+  useMantineTheme
+} from "@mantine/core";
+
+import {
+  IconAlertCircle,
+  IconX,
+  IconStack2
+} from "@tabler/icons"
+
+
+// import { CssVarsProvider } from '@mui/joy/styles';
+// import { Sheet, Box, Chip, ChipDelete, Alert, Typography, Divider } from '@mui/joy';
+// import FormControl from '@mui/joy/FormControl';
+// import { TextField, Button, Input, FormHelperText, FormLabel } from '@mui/joy';
 
 // get the url of the websocket server from vercel envs
 // NEXT_PUPLIC prefix is required for vercel to expose the env
@@ -33,14 +73,16 @@ const Home = () => {
   }, []);
 
   // update history on new message
+  // TODO: make message an object with text and type
   useEffect(() => {
+    console.log('useEffect on lastMessage')
+    console.log({ lastMessage });
     if (lastMessage !== null) {
-      // message types
-      // primary | neutral | info | success | warning | danger
-      // TODO: unpack json message and check message type 
       setMessageHistory((prev) => [...prev, lastMessage.data]);
     }
-  }, [lastMessage, setMessageHistory]);
+  }, [lastMessage]);
+
+
 
   // form handlers
   const handleSubscribe = function () {
@@ -82,78 +124,132 @@ const Home = () => {
 
   const isConnected = readyState === ReadyState.OPEN;
 
+  const theme = useMantineTheme()
+
+  // multiselect
+  const [data, setData] = useState([
+    { value: 'demo', label: 'Demo' },
+    { value: 'global', label: 'Global' },
+  ]);
+
   return (
-    <CssVarsProvider>
-      <Sheet sx={{
-        maxWidth: 500,
-        mx: 'auto',
-        my: 4,
-        py: 3,
-        px: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-        borderRadius: 'sm',
-        backgroundColor: 'white'
-      }}>
-        <Divider component="div" role="presentation">
-          <Typography sx={{ p: 1 }}>Connection {connectionStatus}</Typography>
-          <Button
-            onClick={handleConnect}
-            variant="outlined"
-            size="sm"
-            color={isConnected ? 'danger' : 'primary'}
-          >{isConnected ? 'Disconnect' : 'Connect'}</Button>
-        </Divider>
+    <Container
+      sx={{
+        // width: "100%",
+        // maxWidth: '600px',
+        // border: '1px solid',
+        // borderColor: theme.colors.gray[4],
+        // borderRadius: 20,
+        padding: 20,
+        marginTop: 20
+      }}
+    >
+      <Grid grow gutter="xl">
+        {/* ========== LEFT COL ========== */}
+        <Grid.Col md={6} lg={3}>
+
+          <Title>Connection</Title>
+          <Space h="xl" />
+
+          <Paper radius="lg" p="lg" withBorder={true}>
+            <Group>
+
+              <Text color={isConnected ? 'green' : 'red'}>{connectionStatus}</Text>
+              {/* <Button
+              onClick={handleConnect}
+              size="sm"
+              color={isConnected ? 'danger' : 'primary'}
+            >{isConnected ? 'Disconnect' : 'Connect'}</Button> */}
+              <Button
+                color="indigo"
+                radius="lg"
+                size="xs"
+                // compact
+                onClick={handleConnect}
+              >
+                {isConnected ? 'Disconnect' : 'Connect'}
+              </Button>
+            </Group>
+          </Paper>
 
 
-        <FormControl>
-          <Input type="text"
-            placeholder="channel"
-            name="channel"
-            onChange={handleChannelInput}
-            value={channelInput}
-            variant="soft"
-            size="lg"
-            disabled={!isConnected}
-          />
-          <FormHelperText>One or more channels, Ex: demo, notify, global.</FormHelperText>
-        </FormControl>
+          <Space h="xl" />
 
-        <Button
-          onClick={handleSubscribe}
-          disabled={!isConnected}
-          color="primary" variant="solid" size="lg"
-        >Subscribe</Button>
-        <Divider component="div" role="presentation">
-          <Typography >Channels</Typography>
-        </Divider>
-        <Box sx={{ p: 1, m: 1 }}>
-          {channelList.map((channel: string, index: number) => (
-            <Chip
-              key={index}
-              size="md"
-              variant="outlined"
-              color="primary"
-              endDecorator={<ChipDelete onClick={() => handleChannelUnsubscribe(index)} />}
-            >{channel}</Chip>
-          ))}
-        </Box>
+          <Paper radius="lg" p="lg" withBorder={true}>
 
+<Text>Channels</Text>
+<Space h="sm" />
+            <MultiSelect
+              // label="Channels"
+              data={data}
+              defaultValue={['demo', 'global']}
+              placeholder="Subscribe to some channels here"
+              size="sm"
+              radius="lg"
+              disabled={!isConnected}
+              searchable
+              creatable
+              icon={<IconStack2 />}
+              getCreateLabel={(query) => `Subscribe to [${query}]`}
+              onCreate={(query) => {
+                const item = { value: query, label: query };
+                setData((current) => [...current, item]);
+                return item;
+              }}
+            />
 
-        <Divider component="div" role="presentation">
-          <Typography >Messages</Typography>
-        </Divider>
+            {/* <Space h="xl" /> */}
+            {/* <Paper radius="lg" p="lg" withBorder={true}> */}
+            {/* {channelList.map((channel: string, index: number) => (
+              <Button
+                key={index}
+                color="green"
+                variant='outline'
+                radius="lg"
+                size="xs"
+                rightIcon={<IconX size={12} color="white" />}
+                >channel</Button>
+            ))} */}
+            {/* </Paper> */}
+          </Paper>
+          {/* <Group sx={{ p: 1, m: 1 }}>
+            {channelList.map((channel: string, index: number) => (
+              <Button
+                key={index}
+                size="md"
+                // variant="outlined"
+                color="primary"
+              // endDecorator={<ChipDelete onClick={() => handleChannelUnsubscribe(index)} />}
+              >{channel}</Button>
+            ))}
+          </Group> */}
 
-        <Box sx={{ display: 'flex', gap: 2, width: '100%', flexDirection: 'column' }}>
-          {messageHistory.map((message: any, idx: number) => (
-            <Alert key={idx} variant="soft" color={JSON.parse(message.data).type}>
-              {message ? JSON.parse(message.data).text : null}
-            </Alert>
-          ))}
-        </Box>
-      </Sheet>
-    </CssVarsProvider>
+        </Grid.Col>
+        <Grid.Col md={6} lg={3}>
+
+          <Title >Messages</Title>
+          <Space h="xl" />
+          <Paper radius="lg" p="lg" withBorder={true}>
+            {messageHistory.length == 0 && <Text>No messages</Text>}
+
+            {messageHistory.map((message: any, idx: number) => (
+              <Container key={idx}>
+
+                <Alert
+                  icon={<IconAlertCircle size={16} />}
+                  title="Bummer!"
+                  color={JSON.parse(message).type}
+                  radius="lg"
+                >
+                  {message ? JSON.parse(message).text : null}
+                </Alert>
+                <Space h="md" />
+              </Container>
+            ))}
+          </Paper>
+        </Grid.Col>
+      </Grid>
+    </Container>
   )
 }
 
