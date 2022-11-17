@@ -52,45 +52,20 @@ const Home = () => {
   const [connected, setConnected] = useState<boolean>(true);
 
   // create WS connection
-  const {
-    sendMessage,
-    lastMessage,
-    readyState,
-    getWebSocket,
-  } = useWebSocket(socketUrl, {
-    onOpen: () => {
-      console.log('useWebSocket connected (onOpen)')
-    },
-    shouldReconnect: (closeEvent) => true,
-  }, connected);
+  // const {
+  //   sendMessage,
+  //   lastMessage,
+  //   readyState,
+  //   getWebSocket,
+  // } = useWebSocket(socketUrl, {
+  //   onOpen: () => {
+  //     console.log('useWebSocket connected (onOpen)')
+  //   },
+  //   shouldReconnect: (closeEvent) => true,
+  // }, connected);
 
+  const { sendMessage, lastMessage, readyState } = useWebSocket(socketUrl);
 
-  // use effect on readyState change to monitor connection status
-  useEffect(() => {
-    if (readyState === ReadyState.OPEN) {
-      console.log('useWebSocket connected (useEffect)')
-      updateChannels(null)
-      // setConnected(true)
-      logEvent("readyState: connected");
-      showNotification({
-        message: 'Connected',
-        color: 'green',
-        radius: 'lg'
-      })
-    } else if (readyState === ReadyState.CLOSED) {
-      logEvent("readyState: closed");
-      showNotification({
-        message: 'Disconnected',
-        color: 'red',
-        radius: 'lg'
-      })
-
-    } else {
-      console.log('useWebSocket disconnected (useEffect')
-    }
-  }, [readyState])
-
-  // connection status enum to string
   const connectionStatus = {
     [ReadyState.CONNECTING]: 'Connecting',
     [ReadyState.OPEN]: 'Open',
@@ -98,6 +73,43 @@ const Home = () => {
     [ReadyState.CLOSED]: 'Closed',
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
   }[readyState];
+
+  // use effect on readyState change to monitor connection status
+  // useEffect(() => {
+  //   if (readyState === ReadyState.OPEN) {
+  //     console.log('useWebSocket connected (useEffect)')
+  //     // updateChannels(null)
+  //     setIsConnected(true)
+  //     // setConnected(true)
+  //     logEvent("readyState: connected");
+  //     showNotification({
+  //       message: 'Connected',
+  //       color: 'green',
+  //       radius: 'lg'
+  //     })
+  //   } else if (readyState === ReadyState.CLOSED) {
+  //     logEvent("readyState: closed");
+  //     setIsConnected(false)
+  //     showNotification({
+  //       message: 'Disconnected',
+  //       color: 'red',
+  //       radius: 'lg'
+  //     })
+
+  //   } else {
+  //     setIsConnected(false)
+  //     console.log('useWebSocket disconnected (useEffect')
+  //   }
+  // }, [readyState])
+
+  // connection status enum to string
+  // const connectionStatus = {
+  //   [ReadyState.CONNECTING]: 'Connecting',
+  //   [ReadyState.OPEN]: 'Open',
+  //   [ReadyState.CLOSING]: 'Closing',
+  //   [ReadyState.CLOSED]: 'Closed',
+  //   [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
+  // }[readyState];
 
   // let isConnected = readyState === ReadyState.OPEN;
 
@@ -191,7 +203,7 @@ const Home = () => {
         {/* ========== LEFT COL ========== */}
         <Grid.Col md={6} lg={3}>
 
-          <Title>Connection</Title>
+          <Title>Connection. readyState: {readyState}, connectionStatus: {connectionStatus}</Title>
           <Space h="xl" />
 
           <Paper radius="lg" p="lg" withBorder={true}>
