@@ -228,7 +228,7 @@ const Home = () => {
               placeholder="Subscribe to some channels here"
               size="sm"
               radius="lg"
-              disabled={!isConnected}
+              // disabled={!isConnected}
               searchable
               creatable
               icon={<IconStack2 />}
