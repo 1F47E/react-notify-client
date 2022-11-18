@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { showNotification } from '@mantine/notifications';
+import { useLocalStorage } from '@mantine/hooks';
 
 // styling
-
 import {
   Grid,
   Text,
@@ -38,34 +38,30 @@ import {
   IconStack2
 } from "@tabler/icons"
 
+import PublishForm from '../components/publish';
+
 // get the url of the websocket server from vercel envs
 // NEXT_PUPLIC prefix is required for vercel to expose the env
 const socketUrl = process.env.NEXT_PUBLIC_WS_SERVER_URL as string;
 
 const defaultChannels = ['general', 'random', 'test'];
+const localStorageKey = 'saved_channels'
 
 const Home = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [messageHistory, setMessageHistory] = useState<string[]>([]);
-  // const [channelInput, setChannelInput] = useState<string>('demo');
-  const [channels, setChannels] = useState<string[]>(defaultChannels);
-  // const [connected, setConnected] = useState<boolean>(true);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [doConnect, setDoConnect] = useState<boolean>(true);
 
-  // create WS connection
-  // const {
-  //   sendMessage,
-  //   lastMessage,
-  //   readyState,
-  //   getWebSocket,
-  // } = useWebSocket(socketUrl, {
-  //   onOpen: () => {
-  //     console.log('useWebSocket connected (onOpen)')
-  //   },
-  //   shouldReconnect: (closeEvent) => true,
-  // }, connected);
+  // if localStorage is not available or value at given key does not exist
+  // 'channels' will be assigned to defaultChannels
+  const [channels, setChannels] = useLocalStorage(
+    {
+      key: localStorageKey,
+      defaultValue: defaultChannels
+    });
 
+  // create WS connection
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     socketUrl, {
     shouldReconnect: (closeEvent) => true,
@@ -79,7 +75,7 @@ const Home = () => {
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
   }[readyState];
 
-  // function to convert readyState to string status
+  // convert readyState to string status
   const stateToString = (state: number) => {
     switch (state) {
       case ReadyState.UNINSTANTIATED:
@@ -97,6 +93,7 @@ const Home = () => {
     }
   }
 
+  // convert message type to color string value
   const messageTypeToColor = function (type: string): string {
     switch (type) {
       case 'info':
@@ -112,6 +109,7 @@ const Home = () => {
     }
   }
 
+  // show nitification wrapper
   const notify = function (message: string, color: string) {
     showNotification({
       message: message,
@@ -120,6 +118,7 @@ const Home = () => {
     })
   }
 
+
   // handle readyState changes
   useEffect(() => {
     if (readyState === ReadyState.OPEN) {
@@ -127,6 +126,9 @@ const Home = () => {
       console.log('useWebSocket connected (useEffect)')
       logEvent("Connected");
       notify("Connected", "green")
+      console.log('re-subscribing to channels: ', channels)
+      // send list of channels to subscribe to
+      sendMessage(JSON.stringify(channels))
 
     } else if (readyState === ReadyState.CLOSED) {
       setIsConnected(false);
@@ -159,6 +161,7 @@ const Home = () => {
   }, [lastMessage]);
 
   // handle channels change
+  // subscribe to new list of channels
   useEffect(() => {
     if (channels.length == 0) {
       logEvent('Unsubscribed from all channels');
@@ -167,6 +170,7 @@ const Home = () => {
     }
     sendMessage(JSON.stringify(channels))
   }, [channels, sendMessage]);
+
 
   // update logs array with datetime + event
   const logEvent = function (val: string) {
@@ -186,7 +190,6 @@ const Home = () => {
     logEvent(isConnected ? 'disconnecting...' : 'connecting...')
     setDoConnect(prevValue => !prevValue);
   }
-
 
   return (
     <Container
@@ -211,6 +214,7 @@ const Home = () => {
                 size="xs"
                 // compact
                 onClick={handleConnectButton}
+                disabled={readyState === ReadyState.CONNECTING}
               >
                 {isConnected ? 'Disconnect' : 'Connect'}
               </Button>
@@ -224,11 +228,11 @@ const Home = () => {
             <Space h="sm" />
             <MultiSelect
               data={channels}
-              defaultValue={defaultChannels}
+              value={channels}
               placeholder="Subscribe to some channels here"
               size="sm"
               radius="lg"
-              // disabled={!isConnected}
+              disabled={!isConnected}
               searchable
               creatable
               icon={<IconStack2 />}
@@ -251,20 +255,28 @@ const Home = () => {
 
         <Grid.Col md={6} lg={3}>
           <Paper radius="lg" p="lg" withBorder={true}>
-            {messageHistory.length == 0 && <Text>No messages</Text>}
-
-            {messageHistory.map((message: any, idx: number) => (
-              <Container key={idx}>
-                <Alert
-                  color={messageTypeToColor(JSON.parse(message).type)}
-                  radius="lg"
-                >
-                  {message ? JSON.parse(message).text : null}
-                </Alert>
-                <Space h="md" />
-              </Container>
-            ))}
+            <PublishForm />
           </Paper>
+
+          <Space h="xl" />
+
+          {messageHistory.length > 0 && (
+            <Paper radius="lg" p="lg" withBorder={true}>
+              {messageHistory.length == 0 && <Text>No messages</Text>}
+
+              {messageHistory.map((message: any, idx: number) => (
+                <Container key={idx}>
+                  <Alert
+                    color={messageTypeToColor(JSON.parse(message).type)}
+                    radius="lg"
+                  >
+                    {message ? JSON.parse(message).text : null}
+                  </Alert>
+                  <Space h="md" />
+                </Container>
+              ))}
+            </Paper>
+          )}
         </Grid.Col>
       </Grid>
 
