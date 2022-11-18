@@ -40,11 +40,13 @@ import {
     IconStack2
 } from "@tabler/icons"
 
+// get the url of the websocket server from vercel envs
+// NEXT_PUPLIC prefix is required for vercel to expose the env
+const publishUrl = process.env.NEXT_PUBLIC_PUBLISH_SERVER_URL as string;
 
 
 const Publish = () => {
 
-    // set form data
     const [formData, setFormData] = useState({
         channel: 'global',
         type: 'info',
@@ -54,9 +56,6 @@ const Publish = () => {
     const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         console.log('form data', formData);
-        // send data to server
-        // TODO: change to env
-        const url = 'http://notify.zonde.space/publish';
 
         // send post request
         const headers = {
@@ -65,20 +64,16 @@ const Publish = () => {
         }
         const requestOptions = {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({ type: formData.type, text: formData.text })
         };
-        fetch(url, requestOptions)
+        fetch(publishUrl, requestOptions)
             .then(response => { 
                 console.log(response.json()) 
             })
             .then(data => { 
                 console.log('response:', data) 
             });
-
-
-        // sendMessage(JSON.stringify(data));
-        // clear form
         event.currentTarget.reset();
     }
 
