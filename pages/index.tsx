@@ -254,16 +254,14 @@ const Home = () => {
         </Grid.Col>
 
         <Grid.Col md={6} lg={3}>
-          <Paper radius="lg" p="lg" withBorder={true}>
+          {/* <Paper radius="lg" p="lg" withBorder={true}>
             <PublishForm />
           </Paper>
 
-          <Space h="xl" />
+          <Space h="xl" /> */}
 
           {messageHistory.length > 0 && (
             <Paper radius="lg" p="lg" withBorder={true}>
-              {messageHistory.length == 0 && <Text>No messages</Text>}
-
               {messageHistory.map((message: any, idx: number) => (
                 <Container key={idx}>
                   <Alert
