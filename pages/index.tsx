@@ -38,13 +38,13 @@ import {
   IconStack2
 } from "@tabler/icons"
 
-import PublishForm from '../components/publish';
+import HowTo from '../components/howto';
 
 // get the url of the websocket server from vercel envs
 // NEXT_PUPLIC prefix is required for vercel to expose the env
 const socketUrl = process.env.NEXT_PUBLIC_WS_SERVER_URL as string;
 
-const defaultChannels = ['general', 'random', 'test'];
+const defaultChannels = ['global', 'random', 'demo'];
 const localStorageKey = 'saved_channels'
 
 const Home = () => {
@@ -254,11 +254,13 @@ const Home = () => {
         </Grid.Col>
 
         <Grid.Col md={6} lg={3}>
-          {/* <Paper radius="lg" p="lg" withBorder={true}>
-            <PublishForm />
-          </Paper>
+          <Container sx={{ maxWidth: '500px'}} >
+            <Text>To publish a message run the folowing request</Text>
+            <Space h="sm" />
+            <HowTo/>
+          </Container>
 
-          <Space h="xl" /> */}
+          <Space h="xl" />
 
           {messageHistory.length > 0 && (
             <Paper radius="lg" p="lg" withBorder={true}>
