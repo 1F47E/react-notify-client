@@ -1,3 +1,7 @@
+## live demo
+https://webnotify.zonde.space/
+
+## local dev
 ```bash
 yarn dev
 ```
